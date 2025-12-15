@@ -46,7 +46,7 @@ gcloud services enable cloudbuild.googleapis.com run.googleapis.com --project "$
 
 # Build the container image
 echo "Submitting build..."
-gcloud builds submit --project "$GCP_PROJECT_ID" --tag eu.gcr.io/"$GCP_PROJECT_ID"/chess-inference app
+gcloud builds submit --project "$GCP_PROJECT_ID" --tag eu.gcr.io/"$GCP_PROJECT_ID"/chess-inference api
 
 # Deploy to Cloud Run
 echo "Deploying to Cloud Run..."
