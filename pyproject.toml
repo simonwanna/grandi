@@ -15,6 +15,7 @@ dependencies = [
     "google-cloud-storage>=3.7.0",
     "python-dotenv>=1.2.1",
     "google-cloud-bigquery>=3.39.0",
+    "gradio>=6.1.0",
 ]
 
 [dependency-groups]
