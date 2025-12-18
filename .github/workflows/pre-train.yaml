@@ -32,7 +32,7 @@ jobs:
         env:
           PYTHONPATH: .
         run: |
-          python training/pretrain.py
+          python ml/pretrain.py
 
   # --- JOB 2: DEPLOY ---
   deploy:
