@@ -1,83 +1,108 @@
 from typing import Generator
 from unittest.mock import MagicMock, patch
 
+import chess
 import gradio as gr
 import pytest
+from game_engine import ChessGame
 
-from web.utils import save_game_wrapper, start_game_log, update_game_move
+from web.utils import handle_click, offer_draw, start_new_game
 
 
-# Mock logic dependencies
 @pytest.fixture
 def mock_request() -> MagicMock:
-    request = MagicMock(spec=gr.Request)
-    request.username = "test_user"
-    return request
+    req = MagicMock(spec=gr.Request)
+    req.username = "test_player"
+    return req
 
 
 @pytest.fixture
-def mock_save_dummy() -> Generator[MagicMock, None, None]:
-    with patch("web.utils.save_dummy_game") as mock:
-        mock.return_value = "Game Saved Successfully"
-        yield mock
+def mock_api() -> Generator[tuple[MagicMock, MagicMock], None, None]:
+    with (
+        patch("web.utils.get_intuition_score", return_value=0.5) as mock_score,
+        patch("web.utils.save_game", return_value="Saved") as mock_save,
+    ):
+        yield mock_score, mock_save
 
 
-def test_start_game_log(mock_request: MagicMock) -> None:
-    """Test that starting a game creates a valid state dictionary."""
-    state, message = start_game_log(mock_request)
-
-    # Check return structure
-    assert isinstance(state, dict)
-    assert "game_id" in state
-    assert state["user"] == "test_user"
-    assert state["moves"] == []
-    assert state["status"] == "active"
-
-    # Check message
-    assert state["game_id"] in message
-    assert "test_user" in message
+def test_start_new_game(mock_request: MagicMock, mock_api: tuple[MagicMock, MagicMock]) -> None:
+    """Test start new game. Mocks API calls."""
+    game, svg_path, msg, logs = start_new_game("White", 1, mock_request)
+    assert isinstance(game, ChessGame)
+    assert game.user == "test_player"
+    assert "started" in msg.lower()
+    assert svg_path.endswith(".svg")
+    assert logs[0] == ["Start", "0.5"]
 
 
-def test_update_game_move() -> None:
-    """Test that updating a game appends moves to the state and keeps the id."""
-    initial_state = {"game_id": "constant-id-123", "user": "test_player", "moves": ["e4"], "status": "active"}
+def test_handle_click_select(mock_api: tuple[MagicMock, MagicMock]) -> None:
+    """Test handle click select. The click is simulated by coordinates."""
+    game = ChessGame()
+    # Click e2 (White Pawn)
+    # Coords: 600x600. e2 is:
+    # col 4 (e) -> x around 300-375
+    # center of e2: x=337, y=487 (approx)
+    file_e_x = 337
+    rank_2_y = 487
 
-    # Make a move
-    new_state, msg = update_game_move(initial_state, "e5")
+    evt = MagicMock(spec=gr.SelectData)
+    evt.index = [file_e_x, rank_2_y]
 
-    # ID should be CONSTANT
-    assert new_state["game_id"] == "constant-id-123"
-    assert len(new_state["moves"]) == 2
-    assert new_state["moves"] == ["e4", "e5"]
-    assert "e5 played" in msg
+    # Action
+    game, svg, msg, logs = handle_click(game, evt)
 
-
-def test_save_game_wrapper_success(mock_request: MagicMock, mock_save_dummy: MagicMock) -> None:
-    """Test saving a game successfully with matching user."""
-    # Create a valid state
-    state = {"game_id": "unique-id-123", "user": "test_user", "moves": ["e4", "e5"], "status": "active"}
-
-    result = save_game_wrapper(state, mock_request)
-
-    # Assertions
-    assert result == "Game Saved Successfully"
-    mock_save_dummy.assert_called_once_with(username="test_user", game_id="unique-id-123")
+    assert game.selected_square == chess.E2
+    assert "Selected e2" in msg
 
 
-def test_save_game_wrapper_mismatch(mock_request: MagicMock, mock_save_dummy: MagicMock) -> None:
-    """Test that saving fails if the user in state doesn't match the requester."""
-    # State owned by someone else
-    state = {"game_id": "unique-id-999", "user": "evil_hacker", "moves": [], "status": "active"}
+def test_handle_click_move(mock_api: tuple[MagicMock, MagicMock]) -> None:
+    game = ChessGame()
+    # 1. Select e2
+    game.selected_square = chess.E2
 
-    # mock_request.username is "test_user" -> mismatch
-    result = save_game_wrapper(state, mock_request)
+    # 2. Click e4
+    # Rank 4 is row 3. visual y index: 7-3=4? No.
+    # Rank 4: 0(R8), 1(R7), 2(R6), 3(R5), 4(R4). Yes. Row 4.
+    # Center y = 4.5 * 75 = 337.5
+    # Center x (e) = 4.5 * 75 = 337.5
+    evt = MagicMock(spec=gr.SelectData)
+    evt.index = [337, 337]
 
-    assert "Error: Session mismatch" in result
-    mock_save_dummy.assert_not_called()
+    game, svg, msg, logs = handle_click(game, evt)
+
+    assert game.board.piece_at(chess.E4).symbol() == "P"
+    assert game.board.piece_at(chess.E4).symbol() == "P"
+    # Moved to SAN logging: "You moved e4"
+    assert "moved e4" in msg.lower()
+
+    # Check logs
+    assert len(game.logs) > 0
+    # Should contain "You: e4"
+    assert "You: e4" in game.logs[0][0]
 
 
-def test_save_game_wrapper_no_state(mock_request: MagicMock, mock_save_dummy: MagicMock) -> None:
-    """Test saving with empty state."""
-    result = save_game_wrapper(None, mock_request)
-    assert "Error: No active game found" in result
-    mock_save_dummy.assert_not_called()
+def test_offer_draw_saves_game(mock_api: tuple[MagicMock, MagicMock]) -> None:
+    """Test that offering a draw calls the save logic."""
+    mock_score, mock_save = mock_api
+
+    game = ChessGame()
+    game.user = "test_player"
+    game.game_id = "test-game-id"
+    # Make some moves
+    game.make_move("d4")  # White
+    # Assume Black didn't move or mocked engine did?
+    # In this test scope, engine is not auto-mocked unless we mock get_computer_move.
+    # Let's just create a state.
+
+    game, svg, msg, logs = offer_draw(game)
+
+    assert "Draw agreed" in msg
+    mock_save.assert_called_once()
+
+    # Verify args
+    call_kwargs = mock_save.call_args.kwargs
+    assert call_kwargs["winner"] == "draw"
+    assert call_kwargs["white"] == "test_player"
+    assert call_kwargs["game_id"] == "test-game-id"
+    # PGN should contain the move
+    assert "d4" in call_kwargs["pgn"]

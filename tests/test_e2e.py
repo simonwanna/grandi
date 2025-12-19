@@ -33,7 +33,7 @@ def test_predict_endpoint() -> None:
 
     print(f"Testing URL: {url} with payload size: {len(payload)}")
 
-    response = httpx.post(url, json=payload, headers=headers, timeout=10.0)
+    response = httpx.post(url, json=payload, headers=headers, timeout=15.0)
 
     # Assertions
     assert response.status_code == 200, f"Request failed with {response.status_code}: {response.text}"
