@@ -22,3 +22,12 @@ repos:
       - id: ruff
         args: [--fix]     # auto-fix lint issues when possible
       - id: ruff-format   # code formatter
+
+  - repo: local
+    hooks:
+      - id: pytest-game-logic
+        name: Run Game Logic Tests
+        entry: pytest tests/test_game_logic.py
+        language: system
+        types: [python]
+        pass_filenames: false
