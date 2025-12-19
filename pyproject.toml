@@ -17,6 +17,7 @@ dependencies = [
     "google-cloud-bigquery>=3.39.0",
     "gradio>=6.1.0",
     "huggingface-hub>=1.2.3",
+    "python-chess>=1.999",
 ]
 
 [dependency-groups]
