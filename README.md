@@ -11,4 +11,6 @@ A chess game where a neural network predicts the impact of your moves on the fut
 * ♚ **Grandmaster Insight**: Distills board configurations into a single "intuition" score.
 
 ### Dev
-Run `pre-commit install` to install pre-commit hooks before you start working.
+- After cloning the repo, run ``git submodule update --init --recursive`` to get the submodule.
+- Then run `make install` to set up dependencies and hooks. 
+- To run tests, use `make test`.
