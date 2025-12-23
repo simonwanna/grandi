@@ -211,3 +211,4 @@ notes.md
 checkpoints
 *key.json
 *.pth
+ml/bq_work.ipynb
