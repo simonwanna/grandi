@@ -55,8 +55,8 @@ jobs:
 
       - name: Deploy to Cloud Run
         run: |
-          chmod +x deploy.sh
-          ./deploy.sh
+          chmod +x scripts/deploy_cloudrun.sh
+          ./scripts/deploy_cloudrun.sh
 
       - name: Fetch Service URL
         run: |
