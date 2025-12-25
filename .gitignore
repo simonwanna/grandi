@@ -212,3 +212,7 @@ checkpoints
 *key.json
 *.pth
 ml/bq_work.ipynb
+create_shards.py
+download_csv.py
+upload_csv.py
+chess_games.csv

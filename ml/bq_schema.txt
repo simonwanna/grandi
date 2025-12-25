@@ -1,0 +1,11 @@
+# BigQuery Table Schema: chess_data.games
+
+| Column Name       | Type    | Example Value                                                                 | Description |
+|-------------------|---------|-------------------------------------------------------------------------------|-------------|
+| timestamp         | STRING  | "2025-12-23 21:38:13.840907 UTC"                                              | ISO 8601 Timestamp of game end |
+| pgn               | STRING  | "1. e4 e5 2. Nf3 ..." (ends with * or #, NO result headers ex [Result "1-0"]) | Raw moves string with move numbers |
+| winner            | STRING  | "white" OR "black" OR "draw"                                                  | The outcome of the game. |
+| white             | STRING  | "olivia" OR "computer"                                                        | Username of white player |
+| black             | STRING  | "simon" OR "computer"                                                         | Username of black player |
+| intuition_history | STRING  | '[["Start", {"win_prob": 0.5}], ["You: e4", ...]]'                            | JSON string of logs |
+| game_id           | STRING  | "f4cf9942-629e-4902-b1c2-2b39..."                                             | UUIDv4 |
