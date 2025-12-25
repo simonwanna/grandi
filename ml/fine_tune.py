@@ -46,6 +46,8 @@ def main() -> None:
     latest_blob.download_to_filename(MODEL_LOCAL_PATH)
 
     # 4. Load Model
+    # TODO: this might crash if we change model architecture, so we need to be careful with versioning
+    # or just start from scratch with a new model
     print("Loading model...")
     model = ChessNet()
     state_dict = torch.load(MODEL_LOCAL_PATH, map_location=torch.device("cpu"))

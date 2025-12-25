@@ -7,6 +7,7 @@ from google.cloud import bigquery
 from torch.utils.data import TensorDataset
 
 
+# TODO: update to match the 18-channel encoding used in the model
 def get_board_vector(board: chess.Board) -> List[float]:
     """
     Convert board to 64-element float vector matching web/logic.py encoding.
@@ -63,6 +64,7 @@ def fetch_data(project_id: str, days_back: int = 1, table_id: str = "chess_data.
     return data
 
 
+# TODO: this need to change such that it returns features instead of board vectors
 def prepare_dataset(data: List[Tuple[str, str]], sample_rate: float = 0.2) -> TensorDataset:
     """
     Parse PGNs into board states and targets.
@@ -100,6 +102,7 @@ def prepare_dataset(data: List[Tuple[str, str]], sample_rate: float = 0.2) -> Te
 
                 # Random sampling to avoid correlation and bloat
                 if random.random() < sample_rate:
+                    # TODO: change here
                     vector = get_board_vector(board)
                     inputs.append(vector)
                     targets.append(target_val)

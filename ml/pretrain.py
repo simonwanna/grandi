@@ -14,7 +14,7 @@ except ModuleNotFoundError:
 
 
 def main() -> None:
-    MODEL_FILE = "model-64-GA.pth"
+    MODEL_FILE = "model-resnet-base.pth"
     BUCKET_NAME = os.environ.get("BUCKET_NAME")
 
     if not BUCKET_NAME:
@@ -24,6 +24,7 @@ def main() -> None:
     # Create model
     model = ChessNet()
 
+    # TODO: change to download Lichess dataset and preprocess
     # Create dummy dataset
     print("Creating dataset...")
     inputs = torch.randn(100, 64)
@@ -35,6 +36,7 @@ def main() -> None:
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     loss_fn = torch.nn.BCELoss()
 
+    # TODO: change pretraining logic to the one we used
     print("Starting training...")
     for epoch in range(10):
         total_loss = 0
@@ -47,6 +49,8 @@ def main() -> None:
             total_loss += loss.item()
         print(f"Epoch {epoch + 1}: Loss = {total_loss:.4f}")
 
+    # TODO: if there already is a model ckpt in the repo, load that instead of pretraining from scratch ...
+    # Should only deploy this then ...
     print("Saving model...")
     torch.save(model.state_dict(), MODEL_FILE)
 

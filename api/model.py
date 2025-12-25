@@ -1,7 +1,7 @@
 import torch
 
 
-# NOTE: make sure that this matches the trained model
+# TODO: change to the new resnet model
 def ChessNet() -> torch.nn.Module:
     return torch.nn.Sequential(
         torch.nn.Linear(64, 64),

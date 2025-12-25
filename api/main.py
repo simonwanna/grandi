@@ -54,6 +54,7 @@ app = FastAPI(lifespan=lifespan)
 @app.post("/predict")
 def predict(board_state: List[float]) -> dict:
     model = model_dict["model"]
+    # TODO: might need to convert the input here to features (depending how the data is sent)
     board_state = torch.tensor(board_state, dtype=torch.float32)
     with torch.no_grad():
         prediction = model(board_state)
