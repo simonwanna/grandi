@@ -32,6 +32,12 @@ async def lifespan(app: FastAPI) -> None:
         # --- LOAD MODEL ---
         model_structure = ChessNet()
         state_dict = torch.load(MODEL_PATH, map_location=torch.device("cpu"))
+
+        # Unwrap if saved as a checkpoint dict
+        if "model_state_dict" in state_dict:
+            print("Detected wrapped checkpoint. Unwrapping 'model_state_dict'...")
+            state_dict = state_dict["model_state_dict"]
+
         model_structure.load_state_dict(state_dict)
         model_structure.eval()
 

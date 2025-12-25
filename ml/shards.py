@@ -81,7 +81,7 @@ def board_to_tensor(board: chess.Board) -> np.ndarray:
 # ---------------------------
 # Binary result mapping
 # ---------------------------
-def result_to_binary(result_str: str):
+def result_to_binary(result_str: str) -> int | None:
     """
     Return:
       1 if White won ("1-0")
@@ -101,15 +101,15 @@ def result_to_binary(result_str: str):
 def make_binary_value_shards(
     zst_path: str,
     out_dir: str,
-    shard_size=10_000,
-    max_shards=150,
-    max_plies_per_game=120,
-    min_ply_to_start=20,
-    positions_per_game=12,  # more positions per game
-    flip_to_move=True,  # label from side-to-move perspective
-    rng_seed=42,
-    max_games=None,
-):
+    shard_size: int = 10_000,
+    max_shards: int = 150,
+    max_plies_per_game: int = 120,
+    min_ply_to_start: int = 20,
+    positions_per_game: int = 12,  # more positions per game
+    flip_to_move: bool = True,  # label from side-to-move perspective
+    rng_seed: int = 42,
+    max_games: int | None = None,
+) -> None:
     """
     Writes shard_XXXX.npz with:
       X: (N, 18, 8, 8) float32
