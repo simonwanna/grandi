@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from typing import List
 
 import torch
+import torch.nn.functional as F
 from fastapi import FastAPI
 from google.cloud import storage
 from model import ChessNet
@@ -52,11 +53,31 @@ app = FastAPI(lifespan=lifespan)
 
 # The predict endpoint requires IAM authentication
 @app.post("/predict")
-def predict(board_state: List[float]) -> dict:
-    model = model_dict["model"]
-    # TODO: might need to convert the input here to features (depending how the data is sent)
-    board_state = torch.tensor(board_state, dtype=torch.float32)
-    with torch.no_grad():
-        prediction = model(board_state)
+def predict(board_state: List[List[List[float]]]) -> dict:
+    """
+    Predict win probability for side-to-move.
 
-    return {"win_prob": prediction.item()}
+    Request body:
+        board_state: nested list with shape (18, 8, 8)
+                     encoding the position as in training.
+
+    Response:
+        { "win_prob": float }  # probability that side-to-move eventually wins
+    """
+    model = model_dict["model"]
+
+    # Convert JSON -> tensor
+    x = torch.tensor(board_state, dtype=torch.float32)  # (18, 8, 8)
+
+    if x.shape != (18, 8, 8):
+        raise ValueError(f"Expected input shape (18, 8, 8), got {tuple(x.shape)}")
+
+    # Add batch dimension -> (1, 18, 8, 8)
+    x = x.unsqueeze(0)
+
+    with torch.no_grad():
+        logits = model(x)  # (1, 2)
+        probs = F.softmax(logits, dim=1)  # (1, 2)
+        win_prob = probs[0, 1].item()  # class 1 = win
+
+    return {"win_prob": win_prob}
