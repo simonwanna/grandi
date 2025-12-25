@@ -1,4 +1,4 @@
-name: Pre-train and Deploy
+name: Pretrain & Deploy
 
 on:
   workflow_dispatch:  # run manually

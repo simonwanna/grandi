@@ -1,5 +1,5 @@
 # grandi - the grandmaster's intuition :chess_pawn:
-[![Pre-train and Deploy](https://github.com/simonwanna/grandi/actions/workflows/pre-train.yaml/badge.svg)](https://github.com/simonwanna/grandi/actions/workflows/pre-train.yaml)
+[![Pretraining](https://github.com/simonwanna/grandi/actions/workflows/pretrain.yaml/badge.svg)](https://github.com/simonwanna/grandi/actions/workflows/pretrain.yaml)
 
 A chess game where a neural network predicts the impact of your moves on the future game outcome - helping you become a better player.
 
