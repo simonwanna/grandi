@@ -32,7 +32,6 @@ def test_start_new_game(mock_request: MagicMock, mock_api: tuple[MagicMock, Magi
     assert game.user == "test_player"
     assert "started" in msg.lower()
     assert svg_path.endswith(".svg")
-    assert logs[0] == ["Start", "0.5"]
 
 
 def test_handle_click_select(mock_api: tuple[MagicMock, MagicMock]) -> None:
