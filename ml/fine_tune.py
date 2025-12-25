@@ -14,6 +14,59 @@ try:
 except ImportError as e:
     raise ImportError(f"Could not import modules. Ensure PYTHONPATH is set. Error: {e}")
 
+# ----------------------------
+# Training utilities (reused from pretrain style)
+# ----------------------------
+
+from torch.utils.data import DataLoader
+import torch.nn.functional as F
+from torch.amp import autocast, GradScaler
+
+try:
+    from tqdm import tqdm
+except ImportError:  # simple fallback if tqdm not installed
+    def tqdm(x, **kwargs):
+        return x
+
+
+def run_epoch(model, loader, device, opt=None, scaler=None, train=True, label_smoothing=0.0):
+    """
+    Generic train/eval loop, similar to pretrain.run_epoch.
+
+    Assumes:
+      - model(Xb) -> logits of shape (B, 2)
+      - yb are integer class labels {0,1}
+    """
+    model.train(train)
+    total_loss = 0.0
+    total_acc = 0.0
+    n = 0
+
+    for Xb, yb in tqdm(loader, leave=False):
+        Xb = Xb.to(device, non_blocking=True)
+        yb = yb.to(device, non_blocking=True)
+
+        with autocast(
+            device_type="cuda" if device.type == "cuda" else "cpu",
+            enabled=(device.type == "cuda"),
+        ):
+            logits = model(Xb)
+            loss = F.cross_entropy(logits, yb, label_smoothing=label_smoothing)
+
+        if train:
+            opt.zero_grad(set_to_none=True)
+            scaler.scale(loss).backward()
+            scaler.step(opt)
+            scaler.update()
+
+        bsz = Xb.size(0)
+        total_loss += loss.item() * bsz
+        total_acc += (logits.argmax(dim=1) == yb).float().sum().item()
+        n += bsz
+
+    return total_loss / n, total_acc / n
+
+
 
 def main() -> None:
     # 1. Configuration
@@ -46,13 +99,15 @@ def main() -> None:
     latest_blob.download_to_filename(MODEL_LOCAL_PATH)
 
     # 4. Load Model
-    # TODO: this might crash if we change model architecture, so we need to be careful with versioning
-    # or just start from scratch with a new model
     print("Loading model...")
     model = ChessNet()
     state_dict = torch.load(MODEL_LOCAL_PATH, map_location=torch.device("cpu"))
     model.load_state_dict(state_dict)
-    model.train()  # Set to training mode
+
+    # Device + AMP scaler
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("Using device:", device)
+    model.to(device)
 
     # 5. Fetch Data
     # Fetch Yesterday's games (interval 1 day)
@@ -72,28 +127,29 @@ def main() -> None:
         print(f"Dataset too small ({len(dataset)} samples). Skipping training.")
         return
 
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=16, shuffle=True)
+        # DataLoader: you can tweak batch size if needed
+    BATCH_SIZE = 256
+    dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, pin_memory=True)
 
-    # 7. Training Loop
-    # Lower learning rate for fine-tuning
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    loss_fn = torch.nn.BCELoss()
+    # 7. Training Loop (fine-tune with lower LR, few epochs)
+    LEARNING_RATE = 1e-3  # lower LR for fine-tuning
+    EPOCHS = 3
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    scaler = GradScaler(enabled=(device.type == "cuda"))
 
     print(f"Starting fine-tuning on {len(dataset)} positions...")
-    # Train for a few epochs (e.g. 3-5) to adapt without overfitting/catastrophic forgetting
-    EPOCHS = 3
-    for epoch in range(EPOCHS):
-        total_loss = 0
-        for batch_x, batch_y in dataloader:
-            optimizer.zero_grad()
-            output = model(batch_x)
-            loss = loss_fn(output, batch_y)
-            loss.backward()
-            optimizer.step()
-            total_loss += loss.item()
-
-        avg_loss = total_loss / len(dataloader)
-        print(f"Epoch {epoch + 1}/{EPOCHS}: Avg Loss = {avg_loss:.4f}")
+    for epoch in range(1, EPOCHS + 1):
+        tr_loss, tr_acc = run_epoch(
+            model,
+            dataloader,
+            device,
+            opt=optimizer,
+            scaler=scaler,
+            train=True,
+            label_smoothing=0.0,  # can enable if you like
+        )
+        print(f"Epoch {epoch}/{EPOCHS}: loss {tr_loss:.4f} | acc {tr_acc:.3f}")
 
     # 8. Save and Upload
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
