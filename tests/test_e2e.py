@@ -29,7 +29,8 @@ def test_predict_endpoint() -> None:
     # Authenticate with Authorization: Bearer <ID_TOKEN> (Unlocks Cloud Run)
     headers = {"Authorization": f"Bearer {id_token}"}
 
-    payload = [0.5] * 64
+    # Create dummy 18x8x8 input (18 channels, 8 rows, 8 cols)
+    payload = [[[0.0 for _ in range(8)] for _ in range(8)] for _ in range(18)]
 
     print(f"Testing URL: {url} with payload size: {len(payload)}")
 
