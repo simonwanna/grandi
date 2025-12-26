@@ -1,20 +1,18 @@
-import os
-import sys
 import glob
+import os
 import random
-from pathlib import Path
+import sys
 
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import IterableDataset, DataLoader
-from torch.amp import autocast, GradScaler
-from google.cloud import storage
-
 from dotenv import load_dotenv
+from google.cloud import storage
+from torch.amp import GradScaler, autocast
+from torch.utils.data import DataLoader, IterableDataset
+from tqdm import tqdm
 
-load_dotenv() 
+load_dotenv()
 
 # Add the project root to the path so we can import from api
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
@@ -55,7 +53,8 @@ LABEL_SMOOTHING = 0.02
 # Utils: shards
 # ----------------------------
 
-def list_shards(shards_dir: str):
+
+def list_shards(shards_dir: str) -> list[str]:
     pattern = os.path.join(shards_dir, "shard_*.npz")
     shards = sorted(glob.glob(pattern))
     if len(shards) == 0:
@@ -63,7 +62,7 @@ def list_shards(shards_dir: str):
     return shards
 
 
-def split_shards(shards, seed=42):
+def split_shards(shards: list[str], seed: int = 42) -> tuple[list[str], list[str], list[str]]:
     shards = list(shards)
     random.seed(seed)
     random.shuffle(shards)
@@ -76,14 +75,15 @@ def split_shards(shards, seed=42):
         n_train = n - 2
 
     train = shards[:n_train]
-    val = shards[n_train:n_train + n_val]
-    test = shards[n_train + n_val:]
+    val = shards[n_train : n_train + n_val]
+    test = shards[n_train + n_val :]
     return train, val, test
 
 
 # ----------------------------
 # Dataset: stream npz shards
 # ----------------------------
+
 
 class ShardStreamDataset(IterableDataset):
     """
@@ -92,7 +92,14 @@ class ShardStreamDataset(IterableDataset):
       X: (N, 18, 8, 8) float32
       y: (N,) int64 {0,1}
     """
-    def __init__(self, shard_paths, shuffle_shards=True, shuffle_within=True, seed=0):
+
+    def __init__(
+        self,
+        shard_paths: list[str],
+        shuffle_shards: bool = True,
+        shuffle_within: bool = True,
+        seed: int = 0,
+    ):
         super().__init__()
         self.shard_paths = list(shard_paths)
         self.shuffle_shards = shuffle_shards
@@ -105,7 +112,7 @@ class ShardStreamDataset(IterableDataset):
 
         # split shards across workers
         if worker is not None:
-            shard_paths = shard_paths[worker.id::worker.num_workers]
+            shard_paths = shard_paths[worker.id :: worker.num_workers]
             seed = self.seed + worker.id
         else:
             seed = self.seed
@@ -136,15 +143,16 @@ class ShardStreamDataset(IterableDataset):
 # Train / eval loop
 # ----------------------------
 
-# Optional tqdm (fallback if not installed)
-try:
-    from tqdm import tqdm
-except ImportError:  # pragma: no cover
-    def tqdm(x, **kwargs):
-        return x
 
-
-def run_epoch(model, loader, device, opt=None, scaler=None, train=True, label_smoothing=0.0):
+def run_epoch(
+    model: torch.nn.Module,
+    loader: DataLoader,
+    device: torch.device,
+    opt: torch.optim.Optimizer | None = None,
+    scaler: GradScaler | None = None,
+    train: bool = True,
+    label_smoothing: float = 0.0,
+) -> tuple[float, float]:
     model.train(train)
     total_loss = 0.0
     total_acc = 0.0
@@ -154,8 +162,7 @@ def run_epoch(model, loader, device, opt=None, scaler=None, train=True, label_sm
         Xb = Xb.to(device, non_blocking=True)
         yb = yb.to(device, non_blocking=True)
 
-        with autocast(device_type="cuda" if device.type == "cuda" else "cpu",
-                      enabled=(device.type == "cuda")):
+        with autocast(device_type="cuda" if device.type == "cuda" else "cpu", enabled=(device.type == "cuda")):
             logits = model(Xb)  # ChessNet should output logits for 2 classes
             loss = F.cross_entropy(logits, yb, label_smoothing=label_smoothing)
 
@@ -177,6 +184,7 @@ def run_epoch(model, loader, device, opt=None, scaler=None, train=True, label_sm
 # Main
 # ----------------------------
 
+
 def main() -> None:
     print("Using shards from:", SHARDS_DIR)
     shards = list_shards(SHARDS_DIR)
@@ -196,8 +204,8 @@ def main() -> None:
 
     # Datasets / Loaders
     train_ds = ShardStreamDataset(train_shards, shuffle_shards=True, shuffle_within=True, seed=SEED)
-    val_ds   = ShardStreamDataset(val_shards,   shuffle_shards=False, shuffle_within=False, seed=SEED)
-    test_ds  = ShardStreamDataset(test_shards,  shuffle_shards=False, shuffle_within=False, seed=SEED)
+    val_ds = ShardStreamDataset(val_shards, shuffle_shards=False, shuffle_within=False, seed=SEED)
+    test_ds = ShardStreamDataset(test_shards, shuffle_shards=False, shuffle_within=False, seed=SEED)
 
     train_loader = DataLoader(
         train_ds,
@@ -250,9 +258,7 @@ def main() -> None:
         )
 
         print(
-            f"Epoch {epoch:02d} | "
-            f"train loss {tr_loss:.4f} acc {tr_acc:.3f} | "
-            f"val loss {va_loss:.4f} acc {va_acc:.3f}"
+            f"Epoch {epoch:02d} | train loss {tr_loss:.4f} acc {tr_acc:.3f} | val loss {va_loss:.4f} acc {va_acc:.3f}"
         )
 
         if va_loss < best_val - 1e-4:
