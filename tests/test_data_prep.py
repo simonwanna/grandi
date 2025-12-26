@@ -9,6 +9,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from ml.data_prep import get_board_vector, prepare_dataset
 
 
+# TODO: update tests to compare 18-channel input instead of board vector
 def test_board_vector_start_pos() -> None:
     """
     Test that the starting board position is encoded correctly.

@@ -2,44 +2,65 @@ import random
 from typing import List, Tuple
 
 import chess.pgn
+import numpy as np
 import torch
 from google.cloud import bigquery
 from torch.utils.data import TensorDataset
 
 
-def get_board_vector(board: chess.Board) -> List[float]:
+def get_board_vector(board: chess.Board) -> np.ndarray:
     """
-    Convert board to 64-element float vector matching web/logic.py encoding.
-    Scans Rank 7->0, File 0->7.
-    Values: {-6..6} (P=1, N=2, B=3, R=4, Q=5, K=6).
+    Convert board to a (18, 8, 8) float tensor-like array matching web/logic.py encoding.
+
+    Planes 0-11: one-hot piece planes:
+      0-5   : white P, N, B, R, Q, K
+      6-11  : black P, N, B, R, Q, K
+    Plane 12: side to move (all ones if white to move, else zeros)
+    Planes 13-16: castling rights (each all-ones if right is present)
+    Plane 17: en passant file (ones on that file if ep_square is set)
     """
-    vector = []
-    # Piece values
-    piece_values = {
-        chess.PAWN: 1,
-        chess.KNIGHT: 2,
-        chess.BISHOP: 3,
-        chess.ROOK: 4,
-        chess.QUEEN: 5,
-        chess.KING: 6,
+
+    PIECE_TO_PLANE = {
+        (chess.PAWN, True): 0,
+        (chess.KNIGHT, True): 1,
+        (chess.BISHOP, True): 2,
+        (chess.ROOK, True): 3,
+        (chess.QUEEN, True): 4,
+        (chess.KING, True): 5,
+        (chess.PAWN, False): 6,
+        (chess.KNIGHT, False): 7,
+        (chess.BISHOP, False): 8,
+        (chess.ROOK, False): 9,
+        (chess.QUEEN, False): 10,
+        (chess.KING, False): 11,
     }
+    x = np.zeros((18, 8, 8), dtype=np.float32)
 
-    # Iterate Ranks 7 (top/8) down to 0 (bottom/1)
-    for rank in range(7, -1, -1):
-        for file in range(8):
-            square = chess.square(file, rank)
-            piece = board.piece_at(square)
-            if piece:
-                val = piece_values.get(piece.piece_type, 0)
-                if piece.color == chess.BLACK:
-                    val = -val
-                vector.append(float(val))
-            else:
-                vector.append(0.0)
-    return vector
+    for sq, pc in board.piece_map().items():
+        plane = PIECE_TO_PLANE[(pc.piece_type, pc.color)]
+        r = 7 - (sq // 8)
+        c = sq % 8
+        x[plane, r, c] = 1.0
+
+    if board.turn == chess.WHITE:
+        x[12, :, :] = 1.0
+
+    if board.has_kingside_castling_rights(chess.WHITE):
+        x[13, :, :] = 1.0
+    if board.has_queenside_castling_rights(chess.WHITE):
+        x[14, :, :] = 1.0
+    if board.has_kingside_castling_rights(chess.BLACK):
+        x[15, :, :] = 1.0
+    if board.has_queenside_castling_rights(chess.BLACK):
+        x[16, :, :] = 1.0
+
+    if board.ep_square is not None:
+        x[17, :, chess.square_file(board.ep_square)] = 1.0
+
+    return x
 
 
-def fetch_data(project_id: str, days_back: int = 1, table_id: str = "chess_data.games") -> List[Tuple[str, str]]:
+def fetch_data(project_id: str, days_back: int = 7, table_id: str = "chess_data.games") -> List[Tuple[str, str]]:
     """
     Fetch PGNs and Winners from BigQuery for a specific date range.
     Returns list of (pgn_string, winner_string).
@@ -50,7 +71,7 @@ def fetch_data(project_id: str, days_back: int = 1, table_id: str = "chess_data.
     query = f"""
         SELECT pgn, winner 
         FROM `{table_id}` 
-        WHERE DATE(TIMESTAMP(timestamp)) = DATE_SUB(CURRENT_DATE(), INTERVAL {days_back} DAY)
+        WHERE DATE(TIMESTAMP(timestamp)) >= DATE_SUB(CURRENT_DATE(), INTERVAL {days_back} DAY)
         AND pgn IS NOT NULL
         AND pgn != ''
     """
@@ -113,7 +134,7 @@ def prepare_dataset(data: List[Tuple[str, str]], sample_rate: float = 0.2) -> Te
 
     print(f"Dataset created: {len(inputs)} positions.")
 
-    tensor_x = torch.tensor(inputs, dtype=torch.float32)
+    tensor_x = torch.tensor(np.array(inputs), dtype=torch.float32)
     tensor_y = torch.tensor(targets, dtype=torch.float32).view(-1, 1)
 
     return TensorDataset(tensor_x, tensor_y)

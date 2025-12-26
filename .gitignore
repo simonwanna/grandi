@@ -216,3 +216,4 @@ create_shards.py
 download_csv.py
 upload_csv.py
 chess_games.csv
+test_model.py
