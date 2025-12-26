@@ -18,6 +18,7 @@ dependencies = [
     "gradio>=6.1.0",
     "huggingface-hub>=1.2.3",
     "python-chess>=1.999",
+    "tqdm>=4.67.1",
 ]
 
 [dependency-groups]

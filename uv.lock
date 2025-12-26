@@ -465,6 +465,7 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "ruff" },
     { name = "torch" },
+    { name = "tqdm" },
     { name = "uvicorn" },
 ]
 
@@ -488,6 +489,7 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.2.1" },
     { name = "ruff", specifier = ">=0.12.2" },
     { name = "torch", specifier = ">=2.9.1" },
+    { name = "tqdm", specifier = ">=4.67.1" },
     { name = "uvicorn", specifier = ">=0.38.0" },
 ]
 
