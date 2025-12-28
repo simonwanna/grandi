@@ -1,6 +1,6 @@
 # Project Submission: Scalable Machine Learning (KTH)
 
-**Note for Examiners:** This document is intended for the instructors of the *Scalable Machine Learning* course. To access the live application, please use the credentials provided in the Canvas assignment submission. We have implemented password protection to manage costs since the Hugging Face app is public and it uses our Cloud Run inference service.
+**Note for Examiners:** This document is intended for the instructors of the *Scalable Machine Learning* course. To access the live application, please use the credentials provided in the Canvas assignment submission. We have implemented password protection to manage costs since the Hugging Face app is public and it uses our Cloud Run inference service. The app is available at [here](https://huggingface.co/spaces/wannaio/grandi).
 
 ![Cloud Architecture](assets/cloud.png)
 
