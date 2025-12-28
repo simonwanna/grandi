@@ -3,7 +3,7 @@
 
 ![ui](assets/ui.png)
 
-A chess game where a neural network predicts the impact of your moves on the future game outcome - helping you become a better player.
+A chess game where a neural network predicts the impact of your moves on the future game outcome - helping you become a better player. *(Best experienced in dark mode)*
 
 > **For Examiners (Scalable ML Course at KTH):**  
 > Please refer to [submission.md](submission.md) for a detailed overview of the project architecture, cloud infrastructure, and implementation details.
