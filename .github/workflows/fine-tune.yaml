@@ -3,8 +3,8 @@ name: Fine-tune & Deploy
 on:
   workflow_dispatch:  # run manually
   # and cron job weekly
-  schedule:
-    - cron: '0 2 * * 6'  # every week at 2am on Saturday
+#   schedule:
+#     - cron: '0 2 * * 6'  # every week at 2am on Saturday
 
 jobs:
   # --- JOB 1: UPDATE MODEL ---
